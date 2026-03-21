@@ -301,7 +301,7 @@ function loadState(){try{const r=JSON.parse(localStorage.getItem(SKEY));if(r)ret
 function mkDefault(){const courses=[],students={};for(const[id,data]of Object.entries(EXCEL_DATA)){courses.push({id,name:data.name});students[id]=data.students.map(s=>({...s}));}return{courses,students,records:{}};}
 function persist(){localStorage.setItem(SKEY,JSON.stringify(S));}
 let S=loadState();
-S.courses.forEach(c=>{if(!S.students[c.id])S.students[c.id]=[];});
+S.courses.forEach(c=>{if(!S.students[c.id])S.students[c.id]=[];else S.students[c.id].sort((a,b)=>a.nombre.localeCompare(b.nombre,'es',{sensitivity:'base'}));});
 const ALL_TABS=[
   ...S.courses.map(c=>({id:c.id,label:c.name,type:"course"})),
   ...COURSE_GROUPS.map(g=>({id:g.resumId,label:"\u2605 "+g.name,type:"resumen",group:g})),
@@ -422,7 +422,9 @@ function selGen(cid,g){newGenSel[cid]=newGenSel[cid]===g?null:g;renderPanels();s
 function addStudent(cid){
   const nomEl=document.getElementById("nom_"+cid),nombre=nomEl.value.trim(),gen=newGenSel[cid];
   if(!nombre){nomEl.focus();return;}if(!gen){toast("Seleccion\u00e1 g\u00e9nero primero");return;}
-  S.students[cid].push({id:"s"+Date.now(),nombre,gen});newGenSel[cid]=null;persist();renderPanels();
+  S.students[cid].push({id:"s"+Date.now(),nombre,gen});
+  S.students[cid].sort((a,b)=>a.nombre.localeCompare(b.nombre,'es',{sensitivity:'base'}));
+  newGenSel[cid]=null;persist();renderPanels();
   setTimeout(()=>document.getElementById("nom_"+cid)?.focus(),30);
 }
 function delStudent(cid,sid){
