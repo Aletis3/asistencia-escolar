@@ -494,7 +494,7 @@ render();
   <div class="pdf-modal-bar">
     <span class="pdf-modal-title" id="pdf-modal-title">Informe</span>
     <div class="pdf-modal-actions">
-      <button class="btn-share" onclick="sharePdf()">&#128279; Compartir</button>
+      <button class="btn-share" onclick="sharePdf()">&#128257; Compartir / Guardar</button>
       <button class="btn-close-pdf" onclick="closePdfModal()">&#10005; Cerrar</button>
     </div>
   </div>
@@ -519,15 +519,28 @@ function closePdfModal(){
 }
 async function sharePdf(){
   if(!_pdfBlob)return;
+  // Try Web Share API with file (Android native share sheet)
   const file=new File([_pdfBlob],_pdfName,{type:'application/pdf'});
   if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    try{await navigator.share({files:[file],title:_pdfName});}catch(e){}
-  } else {
-    // Fallback: download
-    const url=URL.createObjectURL(_pdfBlob);
-    const a=document.createElement('a');a.href=url;a.download=_pdfName;a.click();
-    toast('PDF guardado en Descargas');
+    try{
+      await navigator.share({files:[file],title:_pdfName,text:'Informe de asistencia'});
+      return;
+    }catch(e){if(e.name==='AbortError')return;}
   }
+  // Try share with just URL
+  const url=URL.createObjectURL(_pdfBlob);
+  if(navigator.share){
+    try{await navigator.share({url,title:_pdfName});return;}catch(e){}
+  }
+  // Fallback: open in new tab so user can download from browser
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=_pdfName;
+  a.target='_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  toast('PDF listo — buscalo en Descargas');
 }
 </script>
 </body>
