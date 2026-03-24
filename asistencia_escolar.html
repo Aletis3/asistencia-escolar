@@ -194,15 +194,6 @@ input[type="date"]{background:none;border:none;color:var(--ink);font-family:'DM 
   .course-name,.mes-title,.resumen-title{font-size:1.1rem}
 }
 
-/* PDF PREVIEW MODAL */
-#pdf-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;flex-direction:column}
-#pdf-modal.open{display:flex}
-.pdf-modal-bar{background:var(--ink);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-top:calc(10px + var(--safe-top))}
-.pdf-modal-title{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;color:#f4f1ec;letter-spacing:-.01em}
-.pdf-modal-actions{display:flex;gap:8px}
-.btn-share{font-family:'Syne',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--green);color:#fff;border:none;padding:7px 14px;border-radius:7px;cursor:pointer}
-.btn-close-pdf{font-family:'Syne',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:#444;color:#fff;border:none;padding:7px 12px;border-radius:7px;cursor:pointer}
-#pdf-frame{flex:1;width:100%;border:none;background:#fff}
 
 /* BACKUP */
 .backup-bar{display:flex;gap:8px;padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center}
@@ -609,58 +600,20 @@ setTimeout(checkReminder,2000);
 
 </script>
 
-<!-- PDF Preview Modal -->
-<div id="pdf-modal">
-  <div class="pdf-modal-bar">
-    <span class="pdf-modal-title" id="pdf-modal-title">Informe</span>
-    <div class="pdf-modal-actions">
-      <button class="btn-share" onclick="sharePdf()">&#128257; Compartir / Guardar</button>
-      <button class="btn-close-pdf" onclick="closePdfModal()">&#10005; Cerrar</button>
-    </div>
-  </div>
-  <iframe id="pdf-frame"></iframe>
-</div>
 
 <script>
-// ── PDF Preview Modal ──────────────────────────────────────────────────────────
-let _pdfBlob=null,_pdfName='informe.pdf';
+// ── PDF Download ──────────────────────────────────────────────────────────────
 function showPdfPreview(doc,filename){
-  _pdfName=filename;
   const blob=doc.output('blob');
-  _pdfBlob=blob;
   const url=URL.createObjectURL(blob);
-  document.getElementById('pdf-frame').src=url;
-  document.getElementById('pdf-modal-title').textContent=filename;
-  document.getElementById('pdf-modal').classList.add('open');
-}
-function closePdfModal(){
-  document.getElementById('pdf-modal').classList.remove('open');
-  document.getElementById('pdf-frame').src='';
-}
-async function sharePdf(){
-  if(!_pdfBlob)return;
-  // Try Web Share API with file (Android native share sheet)
-  const file=new File([_pdfBlob],_pdfName,{type:'application/pdf'});
-  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    try{
-      await navigator.share({files:[file],title:_pdfName,text:'Informe de asistencia'});
-      return;
-    }catch(e){if(e.name==='AbortError')return;}
-  }
-  // Try share with just URL
-  const url=URL.createObjectURL(_pdfBlob);
-  if(navigator.share){
-    try{await navigator.share({url,title:_pdfName});return;}catch(e){}
-  }
-  // Fallback: open in new tab so user can download from browser
   const a=document.createElement('a');
   a.href=url;
-  a.download=_pdfName;
-  a.target='_blank';
+  a.download=filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  toast('PDF listo — buscalo en Descargas');
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  toast('✅ PDF listo — buscalo en Descargas');
 }
 </script>
 </body>
