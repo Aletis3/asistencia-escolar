@@ -535,18 +535,18 @@ function exportBackup(){
   const backup={version:1,date:dateStr,data:S};
   const json=JSON.stringify(backup,null,2);
   const blob=new Blob([json],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
   const filename=`respaldo_asistencia_${dateStr}.json`;
-  // Try share first (Android)
   const file=new File([blob],filename,{type:'application/json'});
-  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    navigator.share({files:[file],title:filename,text:'Respaldo de asistencia escolar'}).catch(()=>downloadBackup(url,filename));
-  } else {
-    downloadBackup(url,filename);
-  }
-  // Save last backup date
   localStorage.setItem('lastBackup',dateStr);
-  toast('✅ Respaldo exportado: '+filename);
+  // Try native share first
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file],title:filename,text:'Respaldo de asistencia escolar'})
+      .then(()=>toast('✅ Respaldo compartido'))
+      .catch(()=>downloadBackup(URL.createObjectURL(blob),filename));
+  } else {
+    downloadBackup(URL.createObjectURL(blob),filename);
+    toast('✅ Respaldo guardado en Descargas');
+  }
 }
 
 function downloadBackup(url,filename){
@@ -602,18 +602,69 @@ setTimeout(checkReminder,2000);
 
 
 <script>
-// ── PDF Download ──────────────────────────────────────────────────────────────
+// ── PDF: abrir como data URL en nueva pestaña ─────────────────────────────────
 function showPdfPreview(doc,filename){
-  const blob=doc.output('blob');
+  // Convertir a base64 data URL — funciona en WebView Android
+  const b64=doc.output('datauristring');
+  // Mostrar modal con opciones
+  _pdfB64=b64;
+  _pdfFilename=filename;
+  _pdfDoc=doc;
+  showPdfOptions(filename);
+}
+let _pdfB64=null,_pdfFilename='informe.pdf',_pdfDoc=null;
+
+function showPdfOptions(filename){
+  // Crear modal simple con opciones
+  const existing=document.getElementById('pdf-opts-modal');
+  if(existing)existing.remove();
+  const modal=document.createElement('div');
+  modal.id='pdf-opts-modal';
+  modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
+  modal.innerHTML=`
+    <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:380px">
+      <div style="font-family:Syne,sans-serif;font-size:1rem;font-weight:800;color:#1e1b18;margin-bottom:6px">&#128196; PDF generado</div>
+      <div style="font-size:.8rem;color:#7a7268;margin-bottom:20px">${filename}</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="openPdfInTab()" style="background:#276749;color:#fff;border:none;padding:12px;border-radius:8px;font-family:Syne,sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer">&#128065; Ver PDF</button>
+        <button onclick="sharePdfNative()" style="background:#1a5fa8;color:#fff;border:none;padding:12px;border-radius:8px;font-family:Syne,sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer">&#128257; Compartir por WhatsApp / Drive</button>
+        <button onclick="downloadPdfDirect()" style="background:#ece9e2;color:#1e1b18;border:1.5px solid #d6d0c6;padding:12px;border-radius:8px;font-family:Syne,sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer">&#11015; Guardar en Descargas</button>
+        <button onclick="document.getElementById('pdf-opts-modal').remove()" style="background:none;color:#7a7268;border:none;padding:8px;font-size:.8rem;cursor:pointer">Cerrar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function openPdfInTab(){
+  document.getElementById('pdf-opts-modal')?.remove();
+  window.open(_pdfB64,'_blank');
+}
+
+async function sharePdfNative(){
+  document.getElementById('pdf-opts-modal')?.remove();
+  if(!_pdfDoc)return;
+  const blob=_pdfDoc.output('blob');
+  const file=new File([blob],_pdfFilename,{type:'application/pdf'});
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:_pdfFilename,text:'Informe de asistencia'});return;}
+    catch(e){if(e.name==='AbortError')return;}
+  }
+  // fallback
+  const url=URL.createObjectURL(blob);
+  window.open(url,'_blank');
+  toast('Abrí el PDF y compartilo desde el navegador');
+}
+
+function downloadPdfDirect(){
+  document.getElementById('pdf-opts-modal')?.remove();
+  if(!_pdfDoc)return;
+  const blob=_pdfDoc.output('blob');
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;
-  a.download=filename;
-  document.body.appendChild(a);
-  a.click();
+  a.href=url;a.download=_pdfFilename;
+  document.body.appendChild(a);a.click();
   document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(url),2000);
-  toast('✅ PDF listo — buscalo en Descargas');
+  toast('✅ PDF guardado en Descargas');
 }
 </script>
 </body>
